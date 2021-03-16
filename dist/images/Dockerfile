@@ -22,36 +22,21 @@ ENV PYTHONDONTWRITEBYTECODE yes
 
 COPY kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 RUN INSTALL_PKGS=" \
-	PyYAML bind-utils procps-ng openssl numactl-libs firewalld-filesystem \
+	PyYAML bind-utils openssl numactl-libs firewalld-filesystem \
 	libpcap kubectl \
-	libibverbs wget nc telnet iputils nmap-ncat \
+	libibverbs wget nc telnet nmap-ncat python36 logrotate python-six libunwind \
 	iproute iputils strace socat \
 	unbound-libs \
         " && \
 	yum install -y --setopt=tsflags=nodocs --setopt=skip_missing_names_on_install=False $INSTALL_PKGS
 
 RUN yum -y update && yum clean all && rm -rf /var/cache/yum/*
+COPY rpms/* /root/
 
-# Get a reasonable version of openvswitch (2.9.2 or higher)
-# docker build --build-arg rpmArch=ARCH -f Dockerfile.centos -t some_tag .
-# where ARCH can be x86_64 (default), aarch64, or ppc64le
-ARG rpmArch=x86_64
-ARG ovsVer=2.11.0
-ARG ovsSubVer=4.el7
-ARG dpdkVer=18.11.2
-ARG dpdkSubVer=1.el7
-ARG dpdkRpmUrl=http://mirror.centos.org/centos/7/extras/${rpmArch}/Packages/dpdk-${dpdkVer}-${dpdkSubVer}.${rpmArch}.rpm
-
-RUN if [ "$(uname -m)" = "aarch64" ]; then dpdkRpmUrl=http://mirror.centos.org/altarch/7/extras/aarch64/Packages/dpdk-${dpdkVer}-${dpdkSubVer}.${rpmArch}.rpm; fi && rpm -i ${dpdkRpmUrl}
-RUN rpm -i http://cbs.centos.org/kojifiles/packages/openvswitch/${ovsVer}/${ovsSubVer}/${rpmArch}/openvswitch-${ovsVer}-${ovsSubVer}.${rpmArch}.rpm
-RUN rpm -i http://cbs.centos.org/kojifiles/packages/openvswitch/${ovsVer}/${ovsSubVer}/${rpmArch}/openvswitch-ovn-common-${ovsVer}-${ovsSubVer}.${rpmArch}.rpm
-RUN rpm -i http://cbs.centos.org/kojifiles/packages/openvswitch/${ovsVer}/${ovsSubVer}/${rpmArch}/openvswitch-ovn-central-${ovsVer}-${ovsSubVer}.${rpmArch}.rpm
-RUN rpm -i http://cbs.centos.org/kojifiles/packages/openvswitch/${ovsVer}/${ovsSubVer}/${rpmArch}/openvswitch-ovn-host-${ovsVer}-${ovsSubVer}.${rpmArch}.rpm
-RUN rpm -i http://cbs.centos.org/kojifiles/packages/openvswitch/${ovsVer}/${ovsSubVer}/${rpmArch}/openvswitch-ovn-vtep-${ovsVer}-${ovsSubVer}.${rpmArch}.rpm
-RUN rpm -i http://cbs.centos.org/kojifiles/packages/openvswitch/${ovsVer}/${ovsSubVer}/${rpmArch}/openvswitch-devel-${ovsVer}-${ovsSubVer}.${rpmArch}.rpm
-RUN rm -rf /var/cache/yum
-
-RUN mkdir -p /var/run/openvswitch
+RUN yum localinstall -y /root/*.rpm && \
+    rm -f /root/*.rpm && \
+    rm -rf /var/cache/yum && \
+    mkdir -p /var/run/openvswitch
 
 # Built in ../../go_controller, then the binaries are copied here.
 # put things where they are in the rpm

@@ -52,3 +52,7 @@
                 mkdir -p /var/run/openvswitch
             打镜像
                 docker build -t quay.chargebolt.com/ovn/ovn-daemonset-u:2021.03.19 .
+
+# 自己做的centos镜像
+docker images with version : https://hub.docker.com/r/sccblue/ovn-daemonset-u/tags?page=1&ordering=last_updated
+

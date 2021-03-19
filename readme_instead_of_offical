@@ -1,3 +1,5 @@
+官方文档写的太烂了，索性自己写了
+本环境只针对Centos7.8，其余Ubuntu等，都可以参考这份文档
 编译ovn-kubernetes cni插件
     1 先编译openvswitch 2.15.0
         官方提交了release包（make dist过）

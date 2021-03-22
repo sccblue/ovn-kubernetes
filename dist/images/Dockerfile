@@ -24,7 +24,7 @@ COPY kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 RUN INSTALL_PKGS=" \
 	PyYAML bind-utils openssl numactl-libs firewalld-filesystem \
 	libpcap kubectl \
-	libibverbs wget nc telnet nmap-ncat python36 logrotate python-six libunwind \
+	libibverbs wget nc telnet nmap-ncat python36 logrotate python-six libunwind vim traceroute \
 	iproute iputils strace socat \
 	unbound-libs \
         " && \

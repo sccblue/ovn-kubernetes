@@ -114,3 +114,7 @@ cd ovn-kubernetes/dist/images
 
     4 部署一个daemonset，在每个worker node上都起1个pod
     随便找一个node 执行ping pod_ip，探测连通性
+
+# 进阶 -- 网络打平方案
+    极其适用于云网络，在阿里云上已经测试通过，配合阿里云的ccm，美滋滋 registry.ap-southeast-3.aliyuncs.com/acs/cloud-controller-manager-amd64:v1.9.3.339-g9830b58-aliyun
+    方案链接

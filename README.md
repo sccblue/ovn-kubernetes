@@ -117,4 +117,4 @@ cd ovn-kubernetes/dist/images
 
 # 进阶 -- 网络打平方案
     极其适用于云网络，在阿里云上已经测试通过，配合阿里云的ccm，美滋滋 registry.ap-southeast-3.aliyuncs.com/acs/cloud-controller-manager-amd64:v1.9.3.339-g9830b58-aliyun
-    方案链接
+    方案链接 https://github.com/sccblue/ovn-kubernetes/tree/master/%E7%BD%91%E7%BB%9C%E6%89%93%E5%B9%B3%E6%96%B9%E6%A1%88

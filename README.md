@@ -1,75 +1,96 @@
-# How to use Open Virtual Networking with Kubernetes
+# 最原始的自行编译ovn-kubernetes网络插件
+# 已经在kubernetes 1.19.9(最后一个docker版本的k8s） 和 1.21.2(当前最新版，使用containerd作为容器运行时CRI）
+# 编译机环境  centos7.8.2003  内核版本 3.10.0-1062.18.1.el7.x86_64
+# 基础组件版本
+    openvswitch 2.15.0
+    ovn-21.06.0
+    ovn-kubernetes commit_id cda525710b984ad23b23dc69c6f52966367f192a Wed Jun 30 08:47:24 2021
+    
+# 准备工作
+yum install -y gcc rpm-build
+yum install -y rpm-build
+yum install -y unbound unbound-devel
+yum install -y autoconf gcc-c++ automake openssl-devel 
+yum install -y desktop-file-utils groff graphviz
+yum install -y checkpolicy libcap-ng-devel selinux-policy-devel
+yum install -y /usr/bin/sphinx-build-3 # 没错就是这个样子，不知道为啥取名成这个样子
+yum install -y /usr/bin/sphinx-build # 没错就是这个样子
 
-On Linux, the easiest way to get started is to use OVN DaemonSet and Deployments.
+# 编译ovn-kubernetes cni插件
+    1 先编译openvswitch 2.15.0
+        官方提交了release包（make dist过）
+        wget -k https://www.openvswitch.org/releases/openvswitch-2.15.0.tar.gz
+        tar -zxvf openvswitch-2.15.0.tar.gz
+        cd openvswitch-2.15.0
+        ./boot.sh # 生成configure文件，这步最好不做，下一步使用官方的方式，不去做修改，避免引入其他传统
+        ./configure --prefix=/usr --localstatedir=/var --sysconfdir=/etc
+        make rpm-fedora # 生成rpm文件
+        cp -r rpm/rpmbuild/RPMS/* ~/rpm/ovs-2.15.0  # 备份rpm 
+    2 ovn编译打包rpm v21.06.0.tar.gz
+        ovn官网没提供release的tar.gz，从github上拉取，使用21.06.0
+        wget https://github.com/ovn-org/ovn/archive/v21.06.0.tar.gz
+        tar -zxvf v21.06.0.tar.gz
+        cd ovn-21.06.0/
+        ./boot.sh # 生成configure文件
+        将上面的ovs release打包环境地址传给configure命令
+        ./configure --prefix=/usr --localstatedir=/var --sysconfdir=/etc --with-ovs-source=/root/openvswitch-2.15.0/
+        官方文档提示要在ovs的目录下make dist，实际上并不需要，因为本身已经是编译目录
+        make rpm-fedora
+    3 打ovn-kubernetes的可用镜像
+        openvswitch和ovn是ovn-kubernetes插件的基础，插件只是借助这2个工具创建路由交换拓扑图而已
+        3.1 开始编译基础二进制文件
+            首先下载源码，官方比较恶心，只有master分支，没有release，也没有分支，最近一次release和分支是2018年5月，因此不能随便升级这个插件
+                git clone https://github.com/ovn-org/ovn-kubernetes.git
+            编译4个基础组件: ovnkube ovn-kube-util ovndbchecker ovn-k8s-cni-overlay。在Dockerfile用到，第58和59行：
+                cd ovn-kubernetes/go-controller/cmd/ovnkube && go build
+                cd ovn-kubernetes/go-controller/cmd/ovn-kube-util && go build
+                cd ovn-kubernetes/go-controller/cmd/ovndbchecker/ && go build
+                cd ovn-kubernetes/go-controller/cmd/ovn-k8s-cni-overlay && go build
+                cd /root/ovn-kubernetes/go-controller/cmd/ovnkube-trace && go build
+                编译完成后，会在同目录下生产二进制文件ovnkube ovn-kube-util ovndbchecker ovn-k8s-cni-overlay ovnkube-trace
+            拷贝二进制可执行文件到镜像build的目录下: 
+                cd ovn-kubernetes/dist/images/
+                cp -f ../../go-controller/cmd/ovnkube/ovnkube .
+                cp -f ../../go-controller/cmd/ovn-kube-util/ovn-kube-util .
+                cp -f ../../go-controller/cmd/ovndbchecker/ovndbchecker .
+                cp -f ../../go-controller/cmd/ovnkube-trace/ovnkube-trace .
+                cp -f ../../go-controller/cmd/ovn-k8s-cni-overlay/ovn-k8s-cni-overlay .
+        3.2 拷贝第1、2两个步骤的rpm包到当前目录下
+            cd ovn-kubernetes/dist/images/ && mkdir rpms && cd rpms
+            cp /root/openvswitch-2.15.0/rpm/rpmbuild/RPMS/noarch/* .
+            cp /root/openvswitch-2.15.0/rpm/rpmbuild/RPMS/x86_64/* .
+            cp /root/ovn-21.06.0/rpm/rpmbuild/RPMS/x86_64/* .
+        3.3 替换Dockerfile中关于ovn ovs软件的部分
+            将Dockerfile中第37-53行替换成如下
+                COPY rpms/* /root/
 
-## Install Open vSwitch kernel modules on all hosts.
+                RUN yum localinstall -y /root/*.rpm && \
+                rm -f /root/*.rpm && \
+                rm -rf /var/cache/yum && \
+                mkdir -p /var/run/openvswitch
+            打镜像，quay.chargebolt.com是我自建的的私有仓库，可以改成自己的私有仓库
+                docker build -t quay.chargebolt.com/ovn/ovn-daemonset-u:2021.07.01 .
+                docker push quay.chargebolt.com/ovn/ovn-daemonset-u:2021.07.01 .
+# 搭建k8s集群，不是本文档的目的，不做赘述
 
-Most Linux distributions come with Open vSwitch kernel module by default.  You
-can check its existence with `modinfo openvswitch`.  The features that OVN
-needs are only available in kernel 4.6 and greater. But, you can also install
-Open vSwitch kernel module from the Open vSwitch repository to get all the
-features OVN needs (and any possible bug fixes) for any kernel.
-
-To install Open vSwitch kernel module from Open vSwitch repo manually, please
-read [INSTALL.rst](https://docs.openvswitch.org/en/latest/intro/install/). 
-
-## Run DaemonSet and Deployment
-
-Create OVN StatefulSet, DaemonSet and Deployment yamls from templates by running the commands below:
-(The $MASTER_IP below is the IP address of the machine where kube-apiserver is
-running).
-
-```
-# Clone ovn-kubernetes repo
-mkdir -p $HOME/work/src/github.com/ovn-org
-cd $HOME/work/src/github.com/ovn-org
-git clone https://github.com/ovn-org/ovn-kubernetes
-cd $HOME/work/src/github.com/ovn-org/ovn-kubernetes/dist/images
+# 按照模板生产yaml文件
+cd ovn-kubernetes/dist/images
 ./daemonset.sh --image=docker.io/ovnkube/ovn-daemonset-u:latest \
-    --net-cidr=192.168.0.0/16/24 --svc-cidr=172.16.1.0/24 \
+    --net-cidr=172.29.64.0/20 \
+    --svc-cidr=172.30.64.0/20 \
+    --v4-join-subnet=172.31.64.0/20 \
     --gateway-mode="local" \
-    --k8s-apiserver=https://$MASTER_IP:6443
-```
+    --k8s-apiserver=https://172.17.33.250:6443 \
+    --master-loglevel="5" \
+    --node-loglevel="5" \
+    --dbchecker-loglevel="5" \
+    --ovn-loglevel-northd="-vconsole:info -vfile:info" \
+    --ovn-loglevel-nb="-vconsole:info -vfile:info" \
+    --ovn-loglevel-sb="-vconsole:info -vfile:info" \
+    --ovn-loglevel-controller="-vconsole:info" \
+    --ovn-loglevel-nbctld="-vconsole:info"
+v4-join-subnet参数指定的网段172.31.64.0/20，如果不指定网段，会使用默认的100.64/10网段,会和阿里云的100.64.0.0/10冲突（slb健康检查 oss地址等使用100段）
 
-To set specific logging level for OVN components, pass the related parameter from the below mentioned
-list to the above command. Set values are the default values.
-```
-    --master-loglevel="5" \\Log level for ovnkube (master)
-    --node-loglevel="5" \\ Log level for ovnkube (node)
-    --dbchecker-loglevel="5" \\Log level for ovn-dbchecker (ovnkube-db)
-    --ovn-loglevel-northd="-vconsole:info -vfile:info" \\ Log config for ovn northd
-    --ovn-loglevel-nb="-vconsole:info -vfile:info" \\ Log config for northbound db
-    --ovn-loglevel-sb="-vconsole:info -vfile:info" \\ Log config for southboudn db
-    --ovn-loglevel-controller="-vconsole:info" \\ Log config for ovn-controller
-    --ovn-loglevel-nbctld="-vconsole:info" \\ Log config for nbctl daemon
-```
-
-If you are not running OVS directly in the nodes, you must apply the OVS Daemonset yaml.
-```
-kubectl create -f $HOME/work/src/github.com/ovn-org/ovn-kubernetes/dist/yaml/ovs-node.yaml
-```
-
-Apply OVN DaemonSet and Deployment yamls.
-
-```
-# Create OVN namespace, service accounts, ovnkube-db headless service, configmap, and policies
-kubectl create -f $HOME/work/src/github.com/ovn-org/ovn-kubernetes/dist/yaml/ovn-setup.yaml
-
-# Optionally, if you plan to use the Egress IPs or EgressFirewall features, create the corresponding CRDs:
-# create egressips.k8s.ovn.org CRD
-kubectl create -f $HOME/work/src/github.com/ovn-org/ovn-kubernetes/dist/yaml/k8s.ovn.org_egressips.yaml
-# create egressfirewalls.k8s.ovn.org CRD
-kubectl create -f $HOME/work/src/github.com/ovn-org/ovn-kubernetes/dist/yaml/k8s.ovn.org_egressfirewalls.yaml
-
-# Run ovnkube-db deployment.
-kubectl create -f $HOME/work/src/github.com/ovn-org/ovn-kubernetes/dist/yaml/ovnkube-db.yaml
-
-# Run ovnkube-master deployment.
-kubectl create -f $HOME/work/src/github.com/ovn-org/ovn-kubernetes/dist/yaml/ovnkube-master.yaml
-
-# Run ovnkube daemonset for nodes
-kubectl create -f $HOME/work/src/github.com/ovn-org/ovn-kubernetes/dist/yaml/ovnkube-node.yaml
-```
-
-NOTE: You don't need kube-proxy for OVN to work. You can delete that from your
-cluster.
+# 部署插件
+卸载集群原来的calico插件，并清理干净（最好重启写node，将vxlan网卡清理掉，清理干净）
+使用上一步

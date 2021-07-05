@@ -1,1 +1,7 @@
-
+cd net_no_snat_k8s
+  1 添加网络打平方案，幂等，可多次执行
+    python3 ovn_auto.py
+  2 删除网络打平方案
+    python3 ovn_auto.py
+  3 添加部分节点的打平路由
+    python3 ovn_auto.py add node_name

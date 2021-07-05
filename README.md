@@ -102,10 +102,14 @@ systemctl enable openvswitch
 systemctl start openvswitch
 
 2 开始部署组件
-kubectl apply -f ovn-setup.yaml 
+kubectl apply -f ovn-setup.yaml
+
 kubectl apply -f ovnkube-db.yaml # 等待1-2分钟，STATUS running  READY 2/2
+
 kubectl apply -f ovnkube-master.yaml # 等待上一步 STATUS running  READY 2/2后再执行
+
 kubectl apply -f ovnkube-node.yaml # 等待上一步 STATUS running  READY 3/3后再执行
+
 kubectl get no 查看node是否ready
 
 3 部署一个daemonset，在每个worker node上都起1个pod

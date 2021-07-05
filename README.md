@@ -93,4 +93,17 @@ v4-join-subnet参数指定的网段172.31.64.0/20，如果不指定网段，会�
 
 # 部署插件
 卸载集群原来的calico插件，并清理干净（最好重启写node，将vxlan网卡清理掉，清理干净）
-使用上一步
+1 先启动openvswitch，不使用ovs.yaml文件
+在每台node上安装上一步生成的2个rpm文件 yum install -y openvswitch-2.15.0-1.el7.x86_64.rpm openvswitch-test-2.15.0-1.el7.noarch.rpm
+systemctl enable openvswitch
+systemctl start openvswitch
+
+2 开始部署组件
+kubectl apply -f ovn-setup.yaml 
+kubectl apply -f ovnkube-db.yaml # 等待1-2分钟，STATUS running  READY 2/2
+kubectl apply -f ovnkube-master.yaml # 等待上一步 STATUS running  READY 2/2后再执行
+kubectl apply -f ovnkube-node.yaml # 等待上一步 STATUS running  READY 3/3后再执行
+kubectl get no 查看node是否ready
+
+3 部署一个daemonset，在每个worker node上都起1个pod
+随便找一个node 执行ping pod_ip，探测连通性

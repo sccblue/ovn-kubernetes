@@ -75,12 +75,12 @@ yum install -y /usr/bin/sphinx-build # 没错就是这个样子
 
 # 按照模板生产yaml文件
 cd ovn-kubernetes/dist/images
-./daemonset.sh --image=docker.io/ovnkube/ovn-daemonset-u:latest \
+./daemonset.sh --image=quay.chargebolt.com/ovn/ovn-daemonset-u:2021.07.01 \
     --net-cidr=172.29.64.0/20 \
     --svc-cidr=172.30.64.0/20 \
     --v4-join-subnet=172.31.64.0/20 \
     --gateway-mode="local" \
-    --k8s-apiserver=https://172.17.33.250:6443 \
+    --k8s-apiserver=https://172.17.32.15:6443 \
     --master-loglevel="5" \
     --node-loglevel="5" \
     --dbchecker-loglevel="5" \
@@ -90,6 +90,9 @@ cd ovn-kubernetes/dist/images
     --ovn-loglevel-controller="-vconsole:info" \
     --ovn-loglevel-nbctld="-vconsole:info"
 v4-join-subnet参数指定的网段172.31.64.0/20，如果不指定网段，会使用默认的100.64/10网段,会和阿里云的100.64.0.0/10冲突（slb健康检查 oss地址等使用100段）
+net-cidr 集群pod网段
+svc-cidr 集群service网段
+k8s-apiserver 集群apiserver的地址,最后是域名
 
 # 部署插件
 卸载集群原来的calico插件，并清理干净（最好重启写node，将vxlan网卡清理掉，清理干净）

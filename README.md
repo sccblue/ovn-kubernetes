@@ -7,14 +7,14 @@
     ovn-kubernetes commit_id cda525710b984ad23b23dc69c6f52966367f192a Wed Jun 30 08:47:24 2021
     
 # 准备工作
-yum install -y gcc rpm-build
-yum install -y rpm-build
-yum install -y unbound unbound-devel
-yum install -y autoconf gcc-c++ automake openssl-devel 
-yum install -y desktop-file-utils groff graphviz
-yum install -y checkpolicy libcap-ng-devel selinux-policy-devel
-yum install -y /usr/bin/sphinx-build-3 # 没错就是这个样子，不知道为啥取名成这个样子
-yum install -y /usr/bin/sphinx-build # 没错就是这个样子
+    yum install -y gcc rpm-build
+    yum install -y rpm-build
+    yum install -y unbound unbound-devel
+    yum install -y autoconf gcc-c++ automake openssl-devel 
+    yum install -y desktop-file-utils groff graphviz
+    yum install -y checkpolicy libcap-ng-devel selinux-policy-devel
+    yum install -y /usr/bin/sphinx-build-3 # 没错就是这个样子，不知道为啥取名成这个样子
+    yum install -y /usr/bin/sphinx-build # 没错就是这个样子
 
 # 编译ovn-kubernetes cni插件
     1 先编译openvswitch 2.15.0
@@ -89,10 +89,12 @@ cd ovn-kubernetes/dist/images
     --ovn-loglevel-sb="-vconsole:info -vfile:info" \
     --ovn-loglevel-controller="-vconsole:info" \
     --ovn-loglevel-nbctld="-vconsole:info"
-v4-join-subnet参数指定的网段172.31.64.0/20，如果不指定网段，会使用默认的100.64/10网段,会和阿里云的100.64.0.0/10冲突（slb健康检查 oss地址等使用100段）
-net-cidr 集群pod网段
-svc-cidr 集群service网段
-k8s-apiserver 集群apiserver的地址,最后是域名
+    
+    参数解释：我做了自定义修改，改成自己的设置网段
+    v4-join-subnet参数指定的网段172.31.64.0/20，如果不指定网段，会使用默认的100.64/10网段,会和阿里云的100.64.0.0/10冲突（slb健康检查 oss地址等使用100段）
+    net-cidr 集群pod网段
+    svc-cidr 集群service网段
+    k8s-apiserver 集群apiserver的地址,最后是域名
 
 # 部署插件
 卸载集群原来的calico插件，并清理干净（最好重启写node，将vxlan网卡清理掉，清理干净）
@@ -102,15 +104,11 @@ systemctl enable openvswitch
 systemctl start openvswitch
 
 2 开始部署组件
-kubectl apply -f ovn-setup.yaml
-
-kubectl apply -f ovnkube-db.yaml # 等待1-2分钟，STATUS running  READY 2/2
-
-kubectl apply -f ovnkube-master.yaml # 等待上一步 STATUS running  READY 2/2后再执行
-
-kubectl apply -f ovnkube-node.yaml # 等待上一步 STATUS running  READY 3/3后再执行
-
-kubectl get no 查看node是否ready
+    kubectl apply -f ovn-setup.yaml
+    kubectl apply -f ovnkube-db.yaml # 等待1-2分钟，STATUS running  READY 2/2
+    kubectl apply -f ovnkube-master.yaml # 等待上一步 STATUS running  READY 2/2后再执行
+    kubectl apply -f ovnkube-node.yaml # 等待上一步 STATUS running  READY 3/3后再执行
+    kubectl get no 查看node是否ready
 
 3 部署一个daemonset，在每个worker node上都起1个pod
 随便找一个node 执行ping pod_ip，探测连通性

@@ -22,15 +22,16 @@ ENV PYTHONDONTWRITEBYTECODE yes
 
 COPY kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 RUN INSTALL_PKGS=" \
-	PyYAML bind-utils openssl numactl-libs firewalld-filesystem \
+	PyYAML bind-utils procps-ng openssl numactl-libs firewalld-filesystem \
 	libpcap kubectl \
-	libibverbs wget nc telnet nmap-ncat python36 logrotate python-six libunwind vim traceroute \
 	iproute iputils strace socat \
 	unbound-libs \
+	nmap-ncat bind-utils wget telnet vim-enhanced /usr/bin/tree tcpdump lsof iputils traceroute mtr \
         " && \
 	yum install -y --setopt=tsflags=nodocs --setopt=skip_missing_names_on_install=False $INSTALL_PKGS
 
 RUN yum -y update && yum clean all && rm -rf /var/cache/yum/*
+
 COPY rpms/* /root/
 
 RUN yum localinstall -y /root/*.rpm && \
